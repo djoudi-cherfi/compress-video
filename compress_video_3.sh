@@ -8,8 +8,7 @@ print_error_and_exit() {
 }
 
 check_empty_argument() {
-    local option_pattern='^-[a-zA-Z]$'
-    if [[ -z $2 || $2 =~ $option_pattern ]]; then
+    if [[ -z $2 || $2 =~ ^-[a-zA-Z]+$ ]]; then
         print_error_and_exit "$1 $error_missing_argument"
     fi
 }
@@ -26,7 +25,7 @@ USAGE:
 
 WITHOUT OPTIONS:
     codec: libx265, preset: ultrafast, quality: 28, extension: "",
-    input_directory: ./, output_directory: /tmp/
+    directory_path: ./, output_directory: /tmp/
 
 OPTIONS:
     -c, --codec
@@ -48,11 +47,8 @@ OPTIONS:
         Defines the extension that should be used.
         avi, m4v, mov, wmv, mp4, ts, mkv, webm, etc.
 
-    -i, --input_directory
+    -d, --directory_path
         Sets the path of the input directory where items should be processed.
-    
-    -o, --output_directory
-        Sets the output directory path where items should be placed temporarily during the process.
 EOF
 }
 
@@ -61,28 +57,24 @@ compress_video() {
     local preset="${preset:-ultrafast}"
     local quality="${quality:-28}"
     local extension="${extension:-}"
-    local input_directory="${input_directory:-./}"
-    local output_directory="${output_directory:-/tmp/}"
-    local option_pattern='/$'
+    local directory_path="${directory_path:-./}"
+    local file_name='"$0"'
     
-    if ! [[ $input_directory =~ $option_pattern ]]; then
-        input_directory=$input_directory/
+    if [[ $directory_path =~ \S+[^\/]+$ ]]; then
+        directory_path=$directory_path/
     fi
-    
-    if ! [[ $output_directory =~ $option_pattern ]]; then
-        output_directory=$output_directory/
+
+    if [[ $extension =~ ^[^\.][a-zA-Z0-9]{0,3} ]]; then
+        extension=.$extension
     fi
 
     if [[ -n $extension ]]; then
-        extension='"${0%.*}"'$extension
+        file_name_extension='"${0%.*}"'$extension
     else
-        extension='"$0"'
+        file_name_extension='"$0"'
     fi
 
-    echo "output_directory $output_directory"
-    echo "output_directoryextension $output_directory$extension"
-
-    find "$input_directory" \( \
+    find "$directory_path" \( \
             -name "*.avi" -o \
             -name "*.m4v" -o \
             -name "*.mov" -o \
@@ -91,9 +83,9 @@ compress_video() {
             -name "*.ts" -o \
             -name "*.mkv" -o \
             -name "*.webm" \) \
-        -execdir bash -c 'ffmpeg -y -i '$input_directory'"$0" -hide_banner -c:v '$codec' -preset '$preset' -crf '$quality' '$output_directory$extension'' {} \; \
-        -execdir bash -c 'rm '$input_directory'"$0"' {} \; \
-        -execdir bash -c 'mv '$output_directory$extension' '$input_directory'' {} \;
+        -execdir bash -c 'ffmpeg -y -i '$directory_path$file_name' -hide_banner -c:v '$codec' -preset '$preset' -crf '$quality' '/tmp/$file_name_extension'' {} \; \
+        -execdir bash -c 'rm '$directory_path$file_name'' {} \; \
+        -execdir bash -c 'mv '/tmp/$file_name_extension' '$directory_path'' {} \;
 }
 
 main() {
@@ -131,18 +123,11 @@ main() {
                 extension="$arg"
                 shift 2
                 ;;
-            -i | --input_directory )
+            -d | --directory_path )
                 local option=$1
                 local arg=$2
                 check_empty_argument "$option" "$arg"
-                input_directory="$arg"
-                shift 2
-                ;;
-            -o | --output_directory ) 
-                local option=$1
-                local arg=$2
-                check_empty_argument "$option" "$arg"
-                output_directory="$arg"
+                directory_path="$arg"
                 shift 2
                 ;;
             *)
