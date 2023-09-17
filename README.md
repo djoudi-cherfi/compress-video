@@ -12,7 +12,7 @@ Bash script to compress video.
     ffmpeg -version
 ```
 
-Macos : homebrow
+Mac : homebrew
 
 ```bash
     brew update && brew upgrade
